@@ -1,0 +1,15 @@
+node_modules/
+package-lock.json
+out/
+artifacts/raw/
+artifacts/*-report.json
+artifacts/screenshots.json
+artifacts/layout-*.json
+artifacts/performance.json
+artifacts/motion/
+artifacts/*.tar.gz
+artifacts/*transcript*
+.env
+*.log
+*.key
+*keypair*.json

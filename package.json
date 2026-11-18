@@ -1,0 +1,22 @@
+{
+  "name": "aether-blowpipe-glacier-furnace",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "An original offline glassblowing action roguelike for make.fun",
+  "scripts": {
+    "start": "node serve.ts",
+    "build": "node --input-type=module -e \"process.env.MAKEFUN_OUTPUT_DIR ||= 'out'; await import('./main.ts')\"",
+    "test": "node tests/playtest.mjs",
+    "test:rules": "node --test tests/rules.test.mjs",
+    "test:run": "node tests/full-run.mjs",
+    "test:performance": "node tests/performance.mjs",
+    "test:dossier": "node tests/dossier.mjs",
+    "capture": "node tests/capture.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.58.2",
+    "pngquant-bin": "9.0.0",
+    "sharp": "0.35.5"
+  }
+}
