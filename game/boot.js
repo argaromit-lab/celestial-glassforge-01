@@ -69,6 +69,8 @@ function loop(now) {
     renderMs: drawTimes.length ? drawTimes.reduce((a, b) => a + b) / drawTimes.length : 0,
     renderer: 'Canvas2D layered 2.5D', cachedArenas: renderer.arenas.size,
     cachedArenaBytes: renderer.arenas.size * 1280 * 800 * 4,
+    worldLabelBoxes: renderer.labelLayout.map(l => ({ text: l.text, ...l.box })),
+    visibleWorldLabels: renderer.labelLayout.length,
     sound: { unlocked: !!audio.ctx, muted: audio.muted, state: audio.ctx?.state || 'locked' },
   };
   window.__shotReady = true;

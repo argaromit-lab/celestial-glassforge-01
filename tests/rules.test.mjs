@@ -7,6 +7,7 @@ import { ArenaNavigation } from '../game/navigation.js';
 import { describeReaction, primeElement, spreadPrismBurn } from '../game/element-reactions.js';
 import { purchaseService, purchaseRelic } from '../game/forge-services.js';
 import { buyTool, normalizeWorkshop, applyStartingTool, awardMilestones } from '../game/workshop.js';
+import { arrangeCombatLabels, rectanglesOverlap } from '../game/combat-labels.js';
 
 const memory = new Map();
 globalThis.localStorage = {
@@ -283,4 +284,19 @@ test('restart clears hazards, temporary upgrades and carried relics', () => {
   assert.equal(run.stats.power, 1);
   assert.equal(run.bullets.length, 0);
   assert.equal(run.bubbles.length, 0);
+});
+
+test('combat typography resolves chain, damage and player label collisions', () => {
+  const input = [
+    { text: 'CHAIN x2!', x: 670, y: 500, size: 34, priority: 100 },
+    { text: '+325', x: 750, y: 501, size: 30, priority: 70 },
+    { text: 'AETHER GLASSBLOWER', x: 525, y: 604, size: 10, priority: 90 },
+    { text: '+95', x: 580, y: 600, size: 25, priority: 70 },
+  ];
+  const placed = arrangeCombatLabels(input, label => label.text.length * label.size * .6);
+  assert.equal(placed.length, input.length);
+  for (let i = 0; i < placed.length; i++) for (let j = i + 1; j < placed.length; j++) {
+    assert.equal(rectanglesOverlap(placed[i].box, placed[j].box), false);
+  }
+  assert.equal(input[1].y, 501, 'presentation must not mutate gameplay labels');
 });

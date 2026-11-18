@@ -1,4 +1,5 @@
 import { TAU, random, ellipse, polygon, clamp } from './math.js';
+import { paintThermalDivide } from './atmosphere.js';
 
 export const PALETTE = { ink: '#101a21', steel: '#304957', brass: '#b99b66', ice: '#9ce9f7', orange: '#ffc17b', parchment: '#ece7d8' };
 
@@ -133,6 +134,7 @@ export function makeArena(realm = 2) {
     polygon(ctx, [[x, y - 11], [x + 7, y], [x, y + 11], [x - 7, y]], null, '#9db1b250');
   }
   ctx.restore();
+  paintThermalDivide(ctx, realm);
   // Edge masonry and glacial growths form a continuous world beyond the play lanes.
   for (let i = 0; i < 17; i++) {
     const x = i * 84 - 20;
@@ -164,25 +166,41 @@ export function heroArt(ctx, p, time, element, scale = 1) {
   groundShadow(ctx, 0, 0, 20, 55);
   const s = Math.sin(p.walk || time * 3);
   const aim = p.angle || -.5;
+  // Wind-tossed scarf is behind the hood and shoulder armor, with a gold hem.
+  const flutter = Math.sin(time * 6 + (p.walk || 0)) * 6;
+  polygon(ctx, [[-6, -46], [-27, -44], [-40, -52 + flutter], [-63, -44 - flutter * .6], [-51, -35], [-33, -32 + flutter * .4], [-13, -37]], '#36728a', '#c6aa71', 1.4);
+  line(ctx, [[-22, -41], [-39, -47 + flutter], [-55, -41 - flutter * .5]], '#97cdd4', 1);
   // Boots and split coat tails establish a grounded artisan silhouette.
   polygon(ctx, [[-13, -7], [-1, -5], [-4 + s * 3, 11], [-15 + s * 3, 10]], '#1b252c', '#7e735d', 1.5);
   polygon(ctx, [[2, -5], [12, -9], [18 - s * 3, 8], [7 - s * 3, 13]], '#202b32', '#7e735d', 1.5);
-  polygon(ctx, [[-16, -42], [11, -43], [22, -10], [5, 3], [0, -7], [-15, 3], [-23, -10]], '#173c4c', '#b6aa79', 1.5);
+  polygon(ctx, [[-16, -42], [11, -43], [25, -6], [11, 10], [2, -2], [-18, 9], [-27, -8]], '#15384d', '#d4b37a', 1.8);
   polygon(ctx, [[-15, -37], [-3, -35], [-4, -6], [-17, -1]], '#24586b');
   polygon(ctx, [[2, -35], [12, -37], [18, -7], [5, -4]], '#122c3a');
   for (let i = 0; i < 4; i++) line(ctx, [[-14 + i * 4, -24], [-17 + i * 5, -4]], '#5f9caf40', .8);
+  polygon(ctx, [[-10, -35], [1, -31], [9, 3], [-2, -1]], '#876c44', '#d6b579');
+  polygon(ctx, [[8, -39], [19, -34], [22, -23], [11, -26]], '#a58c5c', '#eed3a0');
+  polygon(ctx, [[-22, -39], [-12, -44], [-6, -35], [-21, -31]], '#7e7459', '#d9bc87');
+  for (let i = 0; i < 3; i++) line(ctx, [[8 + i * 2, -17 + i * 5], [17 + i * 2, -20 + i * 5]], '#bca779', 1);
   // Ceramic heat canister and copper harness.
   ellipse(ctx, -17, -31, 8, 13, '#645b46', '#e0bc7c', 1.5);
   ellipse(ctx, -18, -34, 5, 9, '#e1c18b', '#f0dbad');
   line(ctx, [[-13, -45], [11, -15], [15, -15]], '#be9560', 4);
   line(ctx, [[-20, -15], [13, -17]], '#b7a079', 5);
   polygon(ctx, [[-3, -20], [3, -20], [4, -14], [-2, -13]], '#dfc88d', '#fff0bd');
-  // Fireproof collar, brass mask and glass visor.
+  // Folded storm hood surrounds a dark face with two independent brass goggles.
   ellipse(ctx, -1, -42, 13, 7, '#d1c1a1', '#4b574e', 2);
-  polygon(ctx, [[-12, -59], [-4, -66], [8, -62], [13, -50], [6, -41], [-7, -43], [-14, -51]], '#8a7653', '#e3c28b', 1.5);
-  polygon(ctx, [[-6, -57], [8, -58], [10, -51], [-3, -48]], '#193b4c', '#d9d9b4');
-  line(ctx, [[-4, -54], [6, -55]], '#b3f2ff', 2);
-  ellipse(ctx, -12, -50, 4, 5, '#bba079', '#f1d8a1');
+  polygon(ctx, [[-18, -48], [-17, -62], [-5, -75], [9, -70], [18, -56], [15, -44], [6, -39], [-8, -40]], '#153548', '#a9c5c9', 1.3);
+  polygon(ctx, [[-5, -75], [-17, -62], [-18, -48], [-10, -45], [-9, -59], [0, -67]], '#39738a');
+  polygon(ctx, [[0, -67], [10, -62], [12, -48], [5, -42], [-8, -44], [-10, -56]], '#15222a', '#b09a70');
+  line(ctx, [[-14, -56], [15, -57]], '#96734c', 4);
+  for (const gx of [-4, 7]) {
+    ellipse(ctx, gx, -56, 5.4, 5.8, '#a68b56', '#f1d599', 1.4);
+    ellipse(ctx, gx, -56, 3.6, 4.1, '#5ad9ef', '#c7fcff', .8);
+    ellipse(ctx, gx - 1, -58, 1.1, 1.5, '#ffffff');
+  }
+  line(ctx, [[0, -56], [3, -56]], '#f1d196', 1.5);
+  polygon(ctx, [[-3, -47], [7, -47], [6, -40], [0, -39]], '#b39b6d', '#e3c999');
+  glow(ctx, 1, -56, 22, '#75eaff', .35);
   // A long crafted blowpipe, aimed in world space.
   const handX = Math.cos(aim) * 19, handY = Math.sin(aim) * 12 - 29;
   line(ctx, [[6, -36], [handX, handY]], '#e3c28b', 8);
@@ -190,8 +208,10 @@ export function heroArt(ctx, p, time, element, scale = 1) {
   line(ctx, [[handX - Math.cos(aim) * 5, handY - Math.sin(aim) * 5], [handX + Math.cos(aim) * 47, handY + Math.sin(aim) * 47]], '#0e1820', 7);
   line(ctx, [[handX - Math.cos(aim) * 5, handY - Math.sin(aim) * 5], [handX + Math.cos(aim) * 47, handY + Math.sin(aim) * 47]], '#cbb98b', 4);
   line(ctx, [[handX, handY - 1], [handX + Math.cos(aim) * 47, handY + Math.sin(aim) * 47 - 1]], '#f3ead3', 1);
+  line(ctx, [[handX + Math.cos(aim) * 26, handY + Math.sin(aim) * 26], [handX + Math.cos(aim) * 49, handY + Math.sin(aim) * 49]], '#83eaff', 1.5);
   for (let i = 0; i < 3; i++) ellipse(ctx, handX + Math.cos(aim) * (14 + i * 4), handY + Math.sin(aim) * (14 + i * 4), 2, 3, '#8d6c46');
-  glow(ctx, handX + Math.cos(aim) * 48, handY + Math.sin(aim) * 48, 15, element, .65);
+  glow(ctx, handX + Math.cos(aim) * 48, handY + Math.sin(aim) * 48, 23, '#ffc975', .7);
+  glow(ctx, handX + Math.cos(aim) * 49, handY + Math.sin(aim) * 49, 11, element, .8);
   if (p.invuln > 0) { ctx.globalAlpha = .45 + Math.sin(time * 25) * .2; ellipse(ctx, 0, -26, 27, 43, null, '#c1f3ff', 2); }
   ctx.restore();
 }
@@ -264,6 +284,32 @@ export function bossArt(ctx, b, time) {
     polygon(ctx, [[px - 6, py], [px + 4, py - 5], [px + 9, py + 5], [px - 2, py + 9]], '#647478', '#ccba85');
   }
   ctx.save(); ctx.translate(x, y - 68);
+  if (solar) {
+    // Solar prominences arc out of the furnace, leaving the mechanical silhouette intact.
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 9; i++) {
+      const a = i / 9 * TAU + time * .08;
+      const reach = r * (1.5 + Math.sin(time * 2.2 + i) * .15);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a - .1) * r * .7, Math.sin(a - .1) * r * .7);
+      ctx.bezierCurveTo(Math.cos(a - .18) * reach, Math.sin(a - .18) * reach, Math.cos(a + .13) * reach * 1.08, Math.sin(a + .13) * reach * 1.08, Math.cos(a + .17) * r * .85, Math.sin(a + .17) * r * .85);
+      ctx.strokeStyle = '#f47c2e64'; ctx.lineWidth = 8; ctx.stroke();
+      ctx.strokeStyle = '#ffd17da0'; ctx.lineWidth = 1.8; ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // Two canted astrolabe hoops counter-rotate around the living core.
+  for (let i = 0; i < 2; i++) {
+    ctx.save(); ctx.rotate((i ? -1 : 1) * time * .16 + i * 1.4 + .35);
+    ellipse(ctx, 0, 0, r * 1.51, r * .6, null, '#1a2027', 8);
+    ellipse(ctx, 0, -1, r * 1.51, r * .6, null, i ? '#ba7951' : '#d8ad70', 3);
+    ellipse(ctx, 0, -2, r * 1.51, r * .6, null, '#f3d09970', .8);
+    for (let j = 0; j < 8; j++) {
+      const a = j / 8 * TAU;
+      ellipse(ctx, Math.cos(a) * r * 1.51, Math.sin(a) * r * .6 - 1, 3, 3, '#e9bc7d', '#fff0c2');
+    }
+    ctx.restore();
+  }
   // Rotating metal corona, each tooth attached to an articulated arm.
   for (let i = 0; i < 12; i++) {
     const a = i / 12 * TAU + time * .12;
@@ -282,7 +328,18 @@ export function bossArt(ctx, b, time) {
   }
   const core = ctx.createRadialGradient(-r * .2, -r * .2, 1, 0, 0, r * .74);
   core.addColorStop(0, '#fffce0'); core.addColorStop(.3, solar ? '#fff5be' : '#edfcff'); core.addColorStop(.55, solar ? '#ffc65b' : '#88e3fc'); core.addColorStop(.85, solar ? '#db6730' : '#3078b3'); core.addColorStop(1, solar ? '#783324' : '#1b3759');
-  ellipse(ctx, 0, 0, r * .71, r * .71, core, solar ? '#ffe3a2' : '#b6f2ff', 2);
+  const pulse = 1 + Math.sin(time * 3.2) * .035;
+  ellipse(ctx, 0, 0, r * .71 * pulse, r * .71 * pulse, core, solar ? '#ffe3a2' : '#b6f2ff', 2);
+  if (solar) {
+    ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r * .7, 0, TAU); ctx.clip();
+    for (let i = 0; i < 7; i++) {
+      const a = i * 1.2 + time * .23;
+      const px = Math.cos(a) * r * .35, py = Math.sin(a * 1.6) * r * .4;
+      ctx.beginPath(); ctx.ellipse(px, py, r * .36, r * .12, a, 0, TAU);
+      ctx.strokeStyle = i % 2 ? '#9e381d8a' : '#fff2b37a'; ctx.lineWidth = i % 2 ? 3 : 1.5; ctx.stroke();
+    }
+    ctx.restore();
+  }
   for (let i = 0; i < 4; i++) {
     ctx.beginPath(); ctx.arc(0, 0, r * (.34 + i * .095), time * .4 + i * 1.9, time * .4 + i * 1.9 + 3.5);
     ctx.strokeStyle = i % 2 ? '#fff9d195' : '#e8884b80'; ctx.lineWidth = 2 + i % 2; ctx.stroke();

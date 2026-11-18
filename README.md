@@ -103,6 +103,8 @@ Without the environment override, the grader's `/output` directory is used. The 
 | --- | --- |
 | `simulation.js` | Fixed-step combat, waves, collision, capture, shatter and bosses |
 | `navigation.js` | Obstacle-aware A* steering and path caching |
+| `combat-labels.js` | Measured world-label placement and collision avoidance |
+| `atmosphere.js` | Thermal floor fractures, ice mist, embers and molten glass stream |
 | `element-reactions.js` | Element priming, mixed-glass reactions and burns |
 | `content.js` | Element, creature, refit and relic definitions |
 | `workshop.js` | Persistent mastery, tool unlocks and milestones |

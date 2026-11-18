@@ -19,7 +19,7 @@ for (const [state, filename] of [['combat', '01-combat.png'], ['title', '02-titl
   await page.screenshot({ path: rawPath, animations: 'disabled', type: 'png' });
   // PNG palette encoding only; no crops, paint, compositing, or content edits.
   let chosen;
-  const budget = state === 'combat' ? 218000 : 135000;
+  const budget = state === 'combat' ? 218000 : state === 'title' ? 122000 : 135000;
   for (const colors of [160, 128, 96, 80, 64, 56, 48, 44, 40, 32, 24, 16]) {
     const buffer = execFileSync(pngquant, ['--speed', '1', '--nofs', '--strip', '--output', '-', String(colors), '--', rawPath], { maxBuffer: 5000000 });
     chosen = { bytes: buffer.length, colors, buffer };

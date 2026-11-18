@@ -148,6 +148,16 @@ assert.ok(pixelMetrics.contrast > 90); assert.ok(pixelMetrics.edgeDensity > .04)
 const layout = {};
 for (const state of ['combat', 'title', 'upgrade', 'victory']) {
   await page.evaluate(state => window.__AETHER_QA__.snapshot(state), state);
+  await page.waitForTimeout(60);
+  const boxes = await page.evaluate(() => window.__AETHER_DIAGNOSTICS__.worldLabelBoxes);
+  if (state === 'combat') {
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], b = boxes[j];
+      assert.ok(!(a.left < b.right + 5 && a.right + 5 > b.left && a.top < b.bottom + 5 && a.bottom + 5 > b.top), `floating text overlap: ${a.text} / ${b.text}`);
+    }
+    assert.ok(boxes.some(b => b.text === 'CHAIN x2!'));
+    assert.ok(boxes.some(b => b.text === 'AETHER GLASSBLOWER'));
+  } else assert.equal(boxes.length, 0, `${state} leaks world typography`);
   layout[state] = await page.evaluate(() => {
     const nodes = [...document.querySelectorAll('#interface button, #interface h1, #interface h2, .kit-name, .objective, .realm-line, .wave-line, .result-stat')];
     const r = document.getElementById('viewport').getBoundingClientRect();

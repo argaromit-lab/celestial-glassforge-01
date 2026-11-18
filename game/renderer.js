@@ -2,6 +2,8 @@ import { W, H, TAU, ellipse, polygon, random, clamp } from './math.js';
 import { makeArena, crystalCluster, furnace, heroArt, foeArt, bossArt, crateArt, glow, text, line, groundShadow } from './art.js';
 import { ELEMENTS, FOES } from './content.js';
 import { COVER } from './simulation.js';
+import { arrangeCombatLabels } from './combat-labels.js';
+import { thermalAir, moltenThread, FURNACE_FRACTURES } from './atmosphere.js';
 
 export class FoundryRenderer {
   constructor(canvas) {
@@ -11,6 +13,7 @@ export class FoundryRenderer {
     this.bloomBuffer = document.createElement('canvas');
     this.bloomBuffer.width = 320; this.bloomBuffer.height = 200;
     this.bloom = this.bloomBuffer.getContext('2d');
+    this.worldLabels = []; this.labelLayout = []; this.labelsVisible = false;
   }
   arena(realm) { if (!this.arenas.has(realm)) this.arenas.set(realm, makeArena(realm)); return this.arenas.get(realm); }
   bubble(ctx, b, run) {
@@ -21,18 +24,35 @@ export class FoundryRenderer {
     const fill = ctx.createRadialGradient(x - r * .3, y - r * .45, 1, x, y, r);
     fill.addColorStop(0, '#e4fcff10'); fill.addColorStop(.55, color + '0d'); fill.addColorStop(.8, color + '23'); fill.addColorStop(.94, color + '4a'); fill.addColorStop(1, color + '8a');
     ellipse(ctx, x, y, r, r, fill, color + 'c9', 1.8);
+    // An emissive interior remains translucent so trapped silhouettes are readable.
+    const ember = ctx.createRadialGradient(x + r * .15, y + r * .28, 0, x, y + r * .1, r * .78);
+    ember.addColorStop(0, color + '62'); ember.addColorStop(.23, color + '29'); ember.addColorStop(1, color + '00');
+    ellipse(ctx, x, y, r * .92, r * .92, ember);
+    const spectrum = ['#a8ffff', '#94b6ff', '#e1a9ff', '#ffc0cf', '#ffe3a8', '#aaf5db'];
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < spectrum.length; i++) {
+      const a = i / spectrum.length * TAU + b.age * .055;
+      ctx.beginPath(); ctx.arc(x, y, r * .98, a, a + TAU / spectrum.length + .02);
+      ctx.strokeStyle = spectrum[(i + b.element * 2) % spectrum.length]; ctx.lineWidth = 2.2; ctx.stroke();
+    }
+    ctx.restore();
     ellipse(ctx, x, y, Math.max(1, r - 4), Math.max(1, r - 4), null, '#e2faff46', .8);
     ctx.save();
     ctx.beginPath(); ctx.arc(x, y, r * .93, -2.8, -1.12); ctx.strokeStyle = '#f0ffff'; ctx.lineWidth = 2.8; ctx.lineCap = 'round'; ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, r * .96, .35, 1.3); ctx.strokeStyle = '#ffd7a8c0'; ctx.lineWidth = 1.6; ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, r * .88, 1.5, 2.6); ctx.strokeStyle = '#dabaffb0'; ctx.lineWidth = 2; ctx.stroke();
     ctx.beginPath(); ctx.ellipse(x - r * .32, y - r * .48, r * .23, r * .09, -.65, 0, TAU); ctx.fillStyle = '#e9ffff9c'; ctx.fill();
+    ellipse(ctx, x - r * .38, y - r * .59, r * .065, r * .065, '#fbffff');
+    const caustic = ctx.createLinearGradient(x - r, y, x + r, y);
+    caustic.addColorStop(0, '#8cddff00'); caustic.addColorStop(.35, '#c0faff90'); caustic.addColorStop(.6, '#fff1cdb0'); caustic.addColorStop(1, '#e8a8ff00');
+    ctx.beginPath(); ctx.ellipse(x, y + r * .55, r * .66, r * .15, -.17, 0, Math.PI);
+    ctx.strokeStyle = caustic; ctx.lineWidth = 3; ctx.stroke();
     ellipse(ctx, x + r * .42, y + r * .38, r * .08, r * .13, '#ffedbe60');
     // Thin caustic arc crossing the glass surface.
     ctx.beginPath(); ctx.ellipse(x, y, r * .97, r * .26, -.32, .05, 3.05); ctx.strokeStyle = '#cbf7ff3a'; ctx.lineWidth = 1; ctx.stroke();
     ctx.restore();
-    if (b.trappedIds.length) {
-      text(ctx, 'TRAPPED!', x, y - r - 13, 16, '#d7fbff', 'sans-serif', 800);
+    if (b.trappedIds.length && this.labelsVisible) {
+      this.worldLabels.push({ text: 'TRAPPED!', x, y: y - r - 15, size: 15, color: '#d7fbff', life: 1, maxLife: 1, priority: 60 });
       ellipse(ctx, x, y + r + 9, 17, 8, '#122b37b0', color + '80');
       text(ctx, `${b.trappedIds.length}`, x, y + r + 9, 10, color);
     }
@@ -43,12 +63,15 @@ export class FoundryRenderer {
   render(run, time, input) {
     const start = performance.now(), ctx = this.ctx;
     const title = run.state === 'title', realm = title ? 2 : run.realm;
+    this.labelsVisible = run.state === 'playing'; this.worldLabels = []; this.labelLayout = [];
     ctx.drawImage(this.arena(realm), 0, 0);
     ctx.save();
     if (run.shake > 0 && !run.reducedMotion) ctx.translate(Math.sin(time * 99) * run.shake * 4, Math.sin(time * 121) * run.shake * 2.5);
     this.drawAmbient(ctx, time, realm);
     if (title) this.drawTitleWorld(ctx, time);
     else { this.drawCombat(ctx, run, time, input); this.drawBloom(ctx, run); }
+    // World typography is drawn after light post-processing: it never blooms.
+    if (this.labelsVisible) this.drawLabels(ctx, run);
     ctx.restore();
     // Natural falloff keeps readable HUD edges without a frame around the world.
     const vignette = ctx.createRadialGradient(640, 420, 250, 640, 400, 810);
@@ -77,6 +100,10 @@ export class FoundryRenderer {
       const p = run.particles[i];
       ellipse(light, p.x, p.y - p.z, 2.5, 2.5, p.color + 'a0');
     }
+    for (const points of FURNACE_FRACTURES) {
+      light.beginPath(); points.forEach(([x, y], i) => i ? light.lineTo(x, y) : light.moveTo(x, y));
+      light.strokeStyle = '#ff9e4750'; light.lineWidth = 5; light.stroke();
+    }
     light.restore();
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = .18; ctx.filter = 'blur(13px)'; ctx.drawImage(this.bloomBuffer, 0, 0, 1280, 800);
@@ -84,6 +111,7 @@ export class FoundryRenderer {
     ctx.restore();
   }
   drawAmbient(ctx, time, realm) {
+    thermalAir(ctx, time, realm);
     for (let i = 0; i < 42; i++) {
       const x = (i * 283.73 + Math.sin(time * .15 + i) * 12) % W, y = (i * 97.37 - time * (5 + i % 7) + H * 100) % H;
       ctx.globalAlpha = .13 + (Math.sin(time + i) + 1) * .12;
@@ -130,15 +158,14 @@ export class FoundryRenderer {
       if (object.type === 'cover') { const c = object.value; if (c.kind === 'ice') crystalCluster(ctx, c.x, c.y, c.r * 2.4, c.seed); else furnace(ctx, c.x, c.y, c.r, time); }
       if (object.type === 'crate') crateArt(ctx, object.value);
       if (object.type === 'foe') foeArt(ctx, object.value, time, FOES[object.value.kind]);
-      if (object.type === 'hero') heroArt(ctx, object.value, time, ELEMENTS[run.element].color);
+      if (object.type === 'hero') heroArt(ctx, object.value, time, ELEMENTS[run.element].color, 1.12);
       if (object.type === 'boss') bossArt(ctx, object.value, time);
     }
     for (const b of run.bubbles) this.bubble(ctx, b, run);
     if (run.charge) {
       const b = run.charge;
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      line(ctx, [[run.player.x + Math.cos(run.player.angle) * 45, run.player.y - 27 + Math.sin(run.player.angle) * 45], [b.x, b.y - 23]], ELEMENTS[b.element].color + '80', 2);
-      ctx.restore(); this.bubble(ctx, b, run);
+      moltenThread(ctx, { x: run.player.x + Math.cos(run.player.angle) * 57, y: run.player.y - 30 + Math.sin(run.player.angle) * 57 }, { x: b.x, y: b.y - 23 }, ELEMENTS[b.element].color, time);
+      this.bubble(ctx, b, run);
     }
     this.drawBossLaser(ctx, run.boss, time);
     for (const b of run.bullets) {
@@ -154,11 +181,22 @@ export class FoundryRenderer {
       ellipse(ctx, x, y, 9, 9, null, '#e2f6eacc', 1);
       for (let i = 0; i < 4; i++) { const a = i * TAU / 4; line(ctx, [[x + Math.cos(a) * 12, y + Math.sin(a) * 12], [x + Math.cos(a) * 17, y + Math.sin(a) * 17]], ELEMENTS[run.element].color, 1); }
     }
-    for (const l of run.labels) { ctx.save(); ctx.globalAlpha = clamp(l.life / Math.min(.3, l.maxLife), 0, 1); text(ctx, l.text, l.x, l.y, l.size, l.color, l.size > 27 ? 'Georgia, serif' : 'sans-serif', 800); ctx.restore(); }
-    if (run.bannerTime > 0 && run.banner) {
+    if (run.bannerTime > 0 && run.banner && this.labelsVisible) {
       ctx.save(); ctx.globalAlpha = Math.min(1, run.bannerTime * 2);
       const bg = ctx.createLinearGradient(270, 0, 1000, 0); bg.addColorStop(0, '#0b1d2b00'); bg.addColorStop(.3, '#10202dda'); bg.addColorStop(.7, '#10202dda'); bg.addColorStop(1, '#0b1d2b00');
       ctx.fillStyle = bg; ctx.fillRect(260, 249, 740, 48); text(ctx, run.banner, 630, 272, 19, '#f3d5a1', 'Georgia, serif', 600); ctx.restore();
+    }
+  }
+  drawLabels(ctx, run) {
+    const candidates = this.worldLabels.concat(run.labels.map(label => ({ ...label, priority: label.text.startsWith('CHAIN') ? 100 : label.text === 'AETHER GLASSBLOWER' ? 90 : label.text.startsWith('+') ? 70 : 50 })));
+    this.labelLayout = arrangeCombatLabels(candidates, label => {
+      ctx.font = `800 ${label.size}px ${label.size > 27 ? 'Georgia, serif' : 'sans-serif'}`;
+      return ctx.measureText(label.text).width;
+    });
+    for (const label of this.labelLayout) {
+      ctx.save(); ctx.globalAlpha = clamp(label.life / Math.min(.3, label.maxLife), 0, 1);
+      text(ctx, label.text, label.x, label.y, label.size, label.color, label.size > 27 ? 'Georgia, serif' : 'sans-serif', 800);
+      ctx.restore();
     }
   }
   drawPickup(ctx, p, time) {
@@ -190,6 +228,15 @@ export class FoundryRenderer {
     } else {
       ctx.globalCompositeOperation = 'lighter'; line(ctx, [[x, y], [endX, endY]], '#ed713730', 27);
       line(ctx, [[x, y], [endX, endY]], '#ffb64d70', 12); line(ctx, [[x, y], [endX, endY]], '#fff0b6', 3);
+      // Offset wavering contours suggest heat shimmer without moving its hitbox.
+      for (const side of [-1, 1]) {
+        const contour = [];
+        for (let i = 0; i <= 24; i++) {
+          const t = i / 24, offset = side * (13 + Math.sin(t * 33 - time * 15) * 3);
+          contour.push([x + (endX - x) * t - Math.sin(laser.angle) * offset, y + (endY - y) * t + Math.cos(laser.angle) * offset]);
+        }
+        line(ctx, contour, '#ffc78725', 1.1);
+      }
       glow(ctx, endX, endY, 26, '#ffbf77', .8);
     }
     ctx.restore();
